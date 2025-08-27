@@ -6,7 +6,12 @@ const dbConfig = defineConfig({
   connections: {
     postgres: {
       client: 'pg',
-      connection: {
+      connection: env.get('DATABASE_URL') ? {
+        // Use Railway's DATABASE_URL if available
+        connectionString: env.get('DATABASE_URL'),
+        ssl: env.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+      } : {
+        // Fallback to individual environment variables
         host: env.get('DB_HOST'),
         port: env.get('DB_PORT'),
         user: env.get('DB_USER'),
