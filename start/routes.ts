@@ -77,26 +77,7 @@ router.group(() => {
   // Stadium guides endpoints
   router.get('/stadiums/:venueId/guide', '#controllers/stadium_guides_controller.show')
   
-  // Push notification endpoints (protected)
-  router.post('/notifications/devices', '#controllers/notifications_controller.registerDevice').use(middleware.jwtAuth())
-  router.delete('/notifications/devices', '#controllers/notifications_controller.unregisterDevice').use(middleware.jwtAuth())
-  router.get('/notifications/devices', '#controllers/notifications_controller.listDevices').use(middleware.jwtAuth())
-  router.post('/notifications/test', '#controllers/notifications_controller.sendTestNotification').use(middleware.jwtAuth())
+  // Notification endpoints removed - not needed for core functionality
 }).prefix('/api/v1')
 
-// Admin routes (protected with JWT auth and admin middleware)
-router.group(() => {
-  router.get('/health', '#controllers/admin_controller.health').use(middleware.jwtAuth()).use(middleware.admin())
-  router.get('/jobs', '#controllers/admin_controller.jobsStatus').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/jobs/:jobName/trigger', '#controllers/admin_controller.triggerJob').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/jobs/:jobName/start', '#controllers/admin_controller.startJob').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/jobs/:jobName/stop', '#controllers/admin_controller.stopJob').use(middleware.jwtAuth()).use(middleware.admin())
-  router.get('/websocket/stats', '#controllers/admin_controller.websocketStats').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/ingestion/trigger', '#controllers/admin_controller.triggerIngestion').use(middleware.jwtAuth()).use(middleware.admin())
-  router.get('/metrics', '#controllers/admin_controller.systemMetrics').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/websocket/test', '#controllers/admin_controller.testWebSocket').use(middleware.jwtAuth()).use(middleware.admin())
-  
-  // Admin notification endpoints
-  router.post('/notifications/team', '#controllers/notifications_controller.sendTeamNotification').use(middleware.jwtAuth()).use(middleware.admin())
-  router.post('/notifications/stadium-guide', '#controllers/notifications_controller.sendStadiumGuideNotification')
-}).prefix('/admin/v1')
+// Admin routes removed - not needed for core functionality

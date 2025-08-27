@@ -11,7 +11,7 @@ export default class MatchesController {
     const matchId = params.id
 
     // Mock data for fast frontend development
-    if (env.get('MOCK_API') === true) {
+    if (env.get('MOCK_API', 'false') === 'true') {
       return response.json({
         id: matchId,
         startTime: '2025-08-09T16:30:00Z',
