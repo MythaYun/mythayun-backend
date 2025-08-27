@@ -12,7 +12,7 @@ export default class FixturesController {
     const leagueId = request.input('leagueId')
     
     // Mock data for fast frontend development
-    if (env.get('MOCK_API', false)) {
+    if (env.get('MOCK_API', 'false') === 'true') {
       return response.json([
         {
           id: 'mock-1',
@@ -102,7 +102,7 @@ export default class FixturesController {
 
   async live({ response }: HttpContext) {
     // Mock data for development
-    if (env.get('MOCK_API', false)) {
+    if (env.get('MOCK_API', 'false') === 'true') {
       return response.json([
         {
           id: 'mock-live-1',

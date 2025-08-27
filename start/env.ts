@@ -34,5 +34,25 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring session package
   |----------------------------------------------------------
   */
-  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const)
+  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring JWT
+  |----------------------------------------------------------
+  */
+  JWT_SECRET: Env.schema.string(),
+  JWT_EXPIRES_IN: Env.schema.string.optional(),
+  REFRESH_TOKEN_EXPIRES_IN: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring Football API
+  |----------------------------------------------------------
+  */
+  RAPIDAPI_HOST: Env.schema.string.optional(),
+  RAPIDAPI_KEY: Env.schema.string.optional(),
+  AF_SEASON: Env.schema.string.optional(),
+  AF_LEAGUE_SLUGS: Env.schema.string.optional(),
+  MOCK_API: Env.schema.string.optional(),
 })
