@@ -25,9 +25,9 @@ export default class FollowsController {
   /**
    * Follow a team, league, or match
    */
-  async follow({ request, response, auth }: HttpContext) {
+  async follow({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -88,9 +88,9 @@ export default class FollowsController {
   /**
    * Unfollow a team, league, or match
    */
-  async unfollow({ request, response, auth }: HttpContext) {
+  async unfollow({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -133,9 +133,9 @@ export default class FollowsController {
   /**
    * Get user's follows
    */
-  async getUserFollows({ request, response, auth }: HttpContext) {
+  async getUserFollows({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -173,9 +173,9 @@ export default class FollowsController {
   /**
    * Get follow statistics for user
    */
-  async getFollowStats({ response, auth }: HttpContext) {
+  async getFollowStats({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -198,9 +198,9 @@ export default class FollowsController {
   /**
    * Get follow recommendations
    */
-  async getRecommendations({ request, response, auth }: HttpContext) {
+  async getRecommendations({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -227,9 +227,9 @@ export default class FollowsController {
   /**
    * Update notification preferences for a follow
    */
-  async updateNotificationPreferences({ request, response, auth }: HttpContext) {
+  async updateNotificationPreferences({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -290,9 +290,9 @@ export default class FollowsController {
   /**
    * Bulk follow operation (useful for onboarding)
    */
-  async bulkFollow({ request, response, auth }: HttpContext) {
+  async bulkFollow({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
@@ -386,9 +386,9 @@ export default class FollowsController {
   /**
    * Check if user follows an entity
    */
-  async checkFollow({ params, response, auth }: HttpContext) {
+  async checkFollow({ request, params, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
       if (!user) {
         return response.status(401).json({ error: 'Not authenticated' })
       }
