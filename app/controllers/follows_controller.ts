@@ -34,7 +34,7 @@ export default class FollowsController {
 
       // Validate follow request
       const followSchema = vine.object({
-        entityType: vine.enum(['TEAM', 'LEAGUE', 'MATCH']),
+        entityType: vine.enum(['team', 'league', 'match']),
         entityId: vine.string().minLength(1),
         notificationPreferences: vine.object({
           goals: vine.boolean().optional(),
