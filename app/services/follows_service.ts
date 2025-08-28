@@ -297,11 +297,11 @@ export default class FollowsService {
         .select('entity_type', 'entity_id')
 
       const followedTeamIds = userFollows
-        .filter(f => f.entityType === 'TEAM')
+        .filter(f => f.entityType === 'team')
         .map(f => f.entityId)
 
       const followedLeagueIds = userFollows
-        .filter(f => f.entityType === 'LEAGUE')
+        .filter(f => f.entityType === 'league')
         .map(f => f.entityId)
 
       const recommendations = []
@@ -381,7 +381,7 @@ export default class FollowsService {
   async followTeam(userId: string, teamId: string, notificationPreferences?: any): Promise<Follow> {
     return this.followEntity({
       userId,
-      entityType: 'TEAM',
+      entityType: 'team',
       entityId: teamId,
       notificationPreferences
     })
@@ -393,7 +393,7 @@ export default class FollowsService {
   async followLeague(userId: string, leagueId: string, notificationPreferences?: any): Promise<Follow> {
     return this.followEntity({
       userId,
-      entityType: 'LEAGUE',
+      entityType: 'league',
       entityId: leagueId,
       notificationPreferences
     })
@@ -405,7 +405,7 @@ export default class FollowsService {
   async followMatch(userId: string, matchId: string, notificationPreferences?: any): Promise<Follow> {
     return this.followEntity({
       userId,
-      entityType: 'MATCH',
+      entityType: 'match',
       entityId: matchId,
       notificationPreferences
     })
@@ -415,21 +415,21 @@ export default class FollowsService {
    * Convenience method: Unfollow a team
    */
   async unfollowTeam(userId: string, teamId: string): Promise<void> {
-    return this.unfollowEntity(userId, 'TEAM', teamId)
+    return this.unfollowEntity(userId, 'team', teamId)
   }
 
   /**
    * Convenience method: Unfollow a league
    */
   async unfollowLeague(userId: string, leagueId: string): Promise<void> {
-    return this.unfollowEntity(userId, 'LEAGUE', leagueId)
+    return this.unfollowEntity(userId, 'league', leagueId)
   }
 
   /**
    * Convenience method: Unfollow a match
    */
   async unfollowMatch(userId: string, matchId: string): Promise<void> {
-    return this.unfollowEntity(userId, 'MATCH', matchId)
+    return this.unfollowEntity(userId, 'match', matchId)
   }
 
   /**
@@ -457,7 +457,7 @@ export default class FollowsService {
    */
   async getTrendingTeams(limit: number = 10): Promise<Team[]> {
     const trending = await Follow.query()
-      .where('entity_type', 'TEAM')
+      .where('entity_type', 'team')
       .where('is_active', true)
       .where('created_at', '>=', DateTime.now().minus({ days: 7 }).toSQL())
       .groupBy('entity_id')
