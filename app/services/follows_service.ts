@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 export interface FollowRequest {
   userId: string
-  entityType: 'TEAM' | 'LEAGUE' | 'MATCH'
+  entityType: 'team' | 'league' | 'match'
   entityId: string
   notificationPreferences?: {
     goals?: boolean
@@ -517,7 +517,7 @@ export default class FollowsService {
       try {
         const follow = await this.followEntity({
           userId,
-          entityType: entity.type.toUpperCase() as 'TEAM' | 'LEAGUE' | 'MATCH',
+          entityType: entity.type.toLowerCase() as 'team' | 'league' | 'match',
           entityId: entity.id
         })
         follows.push(follow)

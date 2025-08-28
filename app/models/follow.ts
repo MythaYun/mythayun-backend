@@ -14,7 +14,7 @@ export default class Follow extends BaseModel {
   declare userId: string
 
   @column()
-  declare entityType: 'TEAM' | 'LEAGUE' | 'MATCH'
+  declare entityType: 'team' | 'league' | 'match'
 
   @column()
   declare entityId: string
