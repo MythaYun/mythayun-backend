@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import FootballApiClient from '#services/football_api_client'
 import FootballDataMapper from '#services/football_data_mapper'
-import League from '#models/league'
+// import League from '#models/league'
 
 export default class FixturesController {
   private footballApi = new FootballApiClient()
@@ -135,13 +135,9 @@ export default class FixturesController {
     }
 
     try {
-      // Get target league IDs from database
-      const leagues = await League.query().select('provider_ids')
-      const leagueIds = leagues
-        .map(league => league.providerIds?.football_api_id?.toString())
-        .filter(Boolean)
-      
-      const liveFixtures = await this.footballApi.getLiveFixtures(leagueIds)
+      // Call FootballAPI directly to get all live fixtures
+      console.log('Fetching live fixtures from FootballAPI...')
+      const liveFixtures = await this.footballApi.getLiveFixtures()
       
       // Transform API response using our data mapper
       const transformedFixtures = liveFixtures.map(fixture => 

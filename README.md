@@ -1,11 +1,11 @@
-# 🏈 MythaYun Backend - Documentation Product Owner
+# 🏈 MythaYun Backend
 
 ## 📋 Vue d'ensemble du projet
 
-**MythaYun Backend** est l'API qui alimente l'application mobile de football MythaYun. Elle fournit toutes les données nécessaires pour afficher les matchs, les statistiques, les équipes et gérer les utilisateurs.
+**MythaYun Backend** est l'API qui alimente l'application mobile/web de football MythaYun. Elle fournit toutes les données nécessaires pour afficher les matchs, les statistiques, les équipes et gérer les utilisateurs.
 
 ### 🎯 Objectif principal
-Fournir une API robuste et rapide qui récupère les données de football en temps réel et gère l'authentification des utilisateurs de l'application mobile.
+Fournir une API robuste et rapide qui récupère les données de football en temps réel et gère l'authentification des utilisateurs de l'application mobile/web.
 
 ---
 
