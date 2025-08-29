@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import { getJobRegistry } from '#start/jobs'
+import { getJobRegistry } from '../../start/jobs.js'
 
 /**
  * AdminController - Senior-level administration interface
@@ -64,12 +64,13 @@ export default class AdminController {
       }
 
       const jobsStatus = jobRegistry.getJobsStatus()
+      const allJobs = [...jobsStatus.active, ...jobsStatus.inactive, ...jobsStatus.error]
       
       return response.json({
         timestamp: new Date().toISOString(),
-        totalJobs: jobsStatus.length,
-        runningJobs: jobsStatus.filter((job: any) => job.running).length,
-        enabledJobs: jobsStatus.filter((job: any) => job.enabled).length,
+        totalJobs: allJobs.length,
+        runningJobs: allJobs.filter((job: any) => job.status === 'active').length,
+        enabledJobs: allJobs.filter((job: any) => job.status !== 'error').length,
         jobs: jobsStatus
       })
 
