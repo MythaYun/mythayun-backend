@@ -193,8 +193,19 @@ export default class FootballApiClient {
         throw new Error(`Football API returned ${response.statusCode}`)
       }
 
-      const data = await response.body.json() as { response: T }
-      
+      const data = await response.body.json() as { response: T; errors?: unknown }
+
+      // API-Football reports problems (bad params, plan limits such as seasons
+      // not included in the subscription) with HTTP 200 and an `errors` field.
+      const errors = data.errors
+      const hasErrors = Array.isArray(errors)
+        ? errors.length > 0
+        : !!errors && typeof errors === 'object' && Object.keys(errors).length > 0
+      if (hasErrors) {
+        logger.error('Football API returned errors', { endpoint, params, errors })
+        throw new Error(`Football API error: ${JSON.stringify(errors)}`)
+      }
+
       logger.info(`Football API success: ${url.pathname}`, {
         duration,
         responseCount: Array.isArray(data.response) ? data.response.length : 1,
@@ -225,7 +236,8 @@ export default class FootballApiClient {
     const params: Record<string, string> = {}
     
     if (leagueIds && leagueIds.length > 0) {
-      params.live = leagueIds.join(',')
+      // API-Football expects dash-separated league IDs, e.g. live=39-140
+      params.live = leagueIds.join('-')
     } else {
       params.live = 'all'
     }

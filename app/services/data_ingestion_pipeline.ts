@@ -2,6 +2,7 @@ import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import FootballApiClient from '#services/football_api_client'
 import FootballDataMapper from '#services/football_data_mapper'
+import { currentSeason, targetLeagueIds } from '#services/football_leagues'
 import League from '../models/league.js'
 import Team from '../models/team.js'
 import Venue from '../models/venue.js'
@@ -103,18 +104,12 @@ export default class DataIngestionPipeline {
     this.resetMetrics()
 
     try {
-      // Get target leagues from database
-      const targetLeagues = await this.getTargetLeagues()
-      if (targetLeagues.length === 0) {
-        logger.warn('No target leagues found in database')
-        return this.metrics
-      }
-
-      logger.info(`Processing ${targetLeagues.length} target leagues`)
+      const leagueIds = targetLeagueIds()
+      logger.info(`Processing ${leagueIds.length} target leagues`)
 
       // Process each league in batches to respect rate limits
-      for (const league of targetLeagues) {
-        await this.ingestLeagueFixturesForLeague(league, date)
+      for (const leagueId of leagueIds) {
+        await this.ingestLeagueFixturesForLeague(leagueId, date)
         
         // Rate limiting between league requests
         await this.sleep(1000)
@@ -141,16 +136,7 @@ export default class DataIngestionPipeline {
     this.resetMetrics()
 
     try {
-      // Get target league IDs
-      const targetLeagues = await this.getTargetLeagues()
-      const leagueIds = targetLeagues
-        .map(league => league.providerIds?.football_api_id?.toString())
-        .filter(Boolean)
-
-      if (leagueIds.length === 0) {
-        logger.warn('No target league IDs found for live ingestion')
-        return this.metrics
-      }
+      const leagueIds = targetLeagueIds()
 
       // Fetch live fixtures from API
       this.metrics.apiCalls++
@@ -215,23 +201,16 @@ export default class DataIngestionPipeline {
   /**
    * Process fixtures for a specific league
    */
-  private async ingestLeagueFixturesForLeague(league: League, date: string): Promise<void> {
+  private async ingestLeagueFixturesForLeague(leagueApiId: string, date: string): Promise<void> {
     try {
-      const leagueApiId = league.providerIds?.football_api_id?.toString()
-      if (!leagueApiId) {
-        logger.warn(`League ${league.name} has no API ID, skipping`)
-        return
-      }
-
-      logger.info(`Ingesting fixtures for league: ${league.name}`)
+      logger.info(`Ingesting fixtures for league: ${leagueApiId}`)
 
       // Fetch fixtures from API
       this.metrics.apiCalls++
-      const season = env.get('AF_SEASON')?.toString()
-      const fixtures = await this.footballApi.getFixtures(date, leagueApiId, season)
-      
+      const fixtures = await this.footballApi.getFixtures(date, leagueApiId, currentSeason())
+
       if (fixtures.length === 0) {
-        logger.debug(`No fixtures found for league ${league.name} on ${date}`)
+        logger.debug(`No fixtures found for league ${leagueApiId} on ${date}`)
         return
       }
 
@@ -240,7 +219,7 @@ export default class DataIngestionPipeline {
 
     } catch (error) {
       this.metrics.errors++
-      logger.error(`Failed to ingest fixtures for league ${league.name}:`, error)
+      logger.error(`Failed to ingest fixtures for league ${leagueApiId}:`, error)
       
       // Continue with other leagues even if one fails
     }
@@ -311,6 +290,9 @@ export default class DataIngestionPipeline {
    * Create a new match record with all related entities
    */
   private async createNewMatch(fixture: any, trx?: any): Promise<void> {
+    // matches.league_id references leagues.id, keyed by the API-Football league ID
+    await this.ensureLeagueExists(fixture.league, trx)
+
     // Ensure teams exist
     await this.ensureTeamExists(fixture.teams.home, trx)
     await this.ensureTeamExists(fixture.teams.away, trx)
@@ -404,6 +386,22 @@ export default class DataIngestionPipeline {
   /**
    * Ensure team exists in database
    */
+  private async ensureLeagueExists(leagueData: any, trx?: any): Promise<void> {
+    const leagueId = leagueData.id.toString()
+    const existingLeague = await League.query(trx).where('id', leagueId).first()
+
+    if (!existingLeague) {
+      await League.create({
+        id: leagueId,
+        name: leagueData.name,
+        country: leagueData.country,
+        season: leagueData.season,
+        logoUrl: leagueData.logo || null,
+        providerIds: { football_api_id: leagueData.id }
+      }, { client: trx })
+    }
+  }
+
   private async ensureTeamExists(teamData: any, trx?: any): Promise<void> {
     const teamId = teamData.id.toString()
     const existingTeam = await Team.query(trx).where('id', teamId).first()
@@ -456,13 +454,6 @@ export default class DataIngestionPipeline {
       logger.error(`Failed to process stadium guide for venue ${venue.name}:`, error)
       this.metrics.errors++
     }
-  }
-
-  /**
-   * Get target leagues from database
-   */
-  private async getTargetLeagues(): Promise<League[]> {
-    return await League.query().select('*')
   }
 
   /**
@@ -535,11 +526,8 @@ export default class DataIngestionPipeline {
     this.resetMetrics()
     
     try {
-      // Find the league by ID
-      const league = await League.findOrFail(leagueId)
-      
-      // Call the private implementation
-      await this.ingestLeagueFixturesForLeague(league, date)
+      // leagueId is the API-Football league ID (also the leagues.id key)
+      await this.ingestLeagueFixturesForLeague(leagueId, date)
       
       this.finalizeMetrics()
       

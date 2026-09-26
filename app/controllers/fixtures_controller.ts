@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import FootballApiClient from '#services/football_api_client'
 import FootballDataMapper from '#services/football_data_mapper'
-// import League from '#models/league'
+import { currentSeason, targetLeagueIds } from '#services/football_leagues'
 
 export default class FixturesController {
   private footballApi = new FootballApiClient()
@@ -80,10 +80,31 @@ export default class FixturesController {
       ])
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+      return response.status(400).json({
+        error: { code: 'INVALID_DATE', message: 'date must be YYYY-MM-DD' }
+      })
+    }
+    if (leagueId !== undefined && leagueId !== null && !/^\d+$/.test(String(leagueId))) {
+      return response.status(400).json({
+        error: { code: 'INVALID_LEAGUE', message: 'leagueId must be a numeric API-Football league ID' }
+      })
+    }
+
     try {
-      // Real API implementation
-      const fixtures = await this.footballApi.getFixtures(date, leagueId, env.get('AF_SEASON')?.toString())
-      
+      let fixtures
+      if (leagueId) {
+        // A league query needs its season
+        fixtures = await this.footballApi.getFixtures(date, String(leagueId), currentSeason())
+      } else {
+        // One call for the whole day, then keep only the leagues we cover.
+        // No season here: the date alone identifies the fixtures.
+        const leagues = new Set(targetLeagueIds())
+        fixtures = (await this.footballApi.getFixtures(date)).filter((fixture) =>
+          leagues.has(String(fixture.league.id))
+        )
+      }
+
       // Transform API response using our data mapper
       const transformedFixtures = fixtures.map(fixture => 
         FootballDataMapper.mapFixtureToResponse(fixture)
@@ -135,9 +156,8 @@ export default class FixturesController {
     }
 
     try {
-      // Call FootballAPI directly to get all live fixtures
-      console.log('Fetching live fixtures from FootballAPI...')
-      const liveFixtures = await this.footballApi.getLiveFixtures()
+      // Live fixtures for the leagues we cover
+      const liveFixtures = await this.footballApi.getLiveFixtures(targetLeagueIds())
       
       // Transform API response using our data mapper
       const transformedFixtures = liveFixtures.map(fixture => 
