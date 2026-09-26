@@ -20,6 +20,13 @@ export const http = defineConfig({
   allowMethodSpoofing: false,
 
   /**
+   * Railway puts one proxy in front of the app. Trusting only that hop makes
+   * request.ip() return the address Railway saw, which a client can't spoof
+   * by sending its own X-Forwarded-For header.
+   */
+  trustProxy: (_address, distance) => distance === 0,
+
+  /**
    * Enabling async local storage will let you access HTTP context
    * from anywhere inside your application.
    */

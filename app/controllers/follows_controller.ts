@@ -206,9 +206,10 @@ export default class FollowsController {
       }
 
       const { limit } = request.qs()
+      const parsedLimit = Number.parseInt(limit)
       const recommendations = await this.followsService.getFollowRecommendations(
-        user.id, 
-        limit ? parseInt(limit) : 10
+        user.id,
+        parsedLimit > 0 ? Math.min(parsedLimit, 50) : 10
       )
 
       return response.json({

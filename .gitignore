@@ -23,3 +23,6 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
+
+# Real Railway values: keep local only. Template is .env.railway.example
+.env.railway

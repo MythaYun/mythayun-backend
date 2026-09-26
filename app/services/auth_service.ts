@@ -6,6 +6,8 @@ import User from '#models/user'
 import { v4 as uuidv4 } from 'uuid'
 import { DateTime } from 'luxon'
 
+const LOCKOUT_MINUTES = 15
+
 export interface AuthTokens {
   accessToken: string
   refreshToken: string
@@ -61,7 +63,10 @@ export default class AuthService {
   private readonly REFRESH_TOKEN_EXPIRES_IN: string
 
   constructor() {
-    this.JWT_SECRET = env.get('JWT_SECRET') || env.get('APP_KEY') || 'default-secret'
+    this.JWT_SECRET = env.get('JWT_SECRET')
+    if (env.get('NODE_ENV') === 'production' && this.JWT_SECRET.length < 32) {
+      throw new Error('JWT_SECRET must be at least 32 characters in production')
+    }
     this.JWT_EXPIRES_IN = env.get('JWT_EXPIRES_IN', '15m')
     this.REFRESH_TOKEN_EXPIRES_IN = env.get('REFRESH_TOKEN_EXPIRES_IN', '7d')
   }
@@ -131,7 +136,14 @@ export default class AuthService {
       }
 
       if (user.accountStatus === 'locked') {
-        throw new Error('Account is locked due to too many failed attempts')
+        const lockedSince = user.lastFailedLoginAt
+        if (lockedSince && lockedSince.plus({ minutes: LOCKOUT_MINUTES }) > DateTime.now()) {
+          throw new Error('Too many failed attempts. Try again later.')
+        }
+        // Lockout expired
+        user.accountStatus = 'active'
+        user.failedLoginAttempts = 0
+        await user.save()
       }
 
       // Verify password
@@ -235,7 +247,7 @@ export default class AuthService {
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     try {
       // Verify refresh token
-      const decoded = jwt.verify(refreshToken, this.JWT_SECRET) as any
+      const decoded = jwt.verify(refreshToken, this.JWT_SECRET, { algorithms: ['HS256'] }) as any
       
       if (decoded.type !== 'refresh') {
         throw new Error('Invalid refresh token')
@@ -243,7 +255,7 @@ export default class AuthService {
 
       // Find user
       const user = await User.find(decoded.userId)
-      if (!user || user.accountStatus !== 'active') {
+      if (!user || user.accountStatus === 'suspended') {
         throw new Error('User not found or inactive')
       }
 
@@ -284,8 +296,8 @@ export default class AuthService {
    */
   async verifyToken(token: string): Promise<User> {
     try {
-      const decoded = jwt.verify(token, this.JWT_SECRET) as any
-      
+      const decoded = jwt.verify(token, this.JWT_SECRET, { algorithms: ['HS256'] }) as any
+
       if (decoded.type !== 'access') {
         throw new Error('Invalid token type')
       }
@@ -318,10 +330,12 @@ export default class AuthService {
     }
 
     const accessToken = jwt.sign(accessTokenPayload, this.JWT_SECRET, {
+      algorithm: 'HS256',
       expiresIn: this.JWT_EXPIRES_IN
     } as jwt.SignOptions)
 
     const refreshToken = jwt.sign(refreshTokenPayload, this.JWT_SECRET, {
+      algorithm: 'HS256',
       expiresIn: this.REFRESH_TOKEN_EXPIRES_IN
     } as jwt.SignOptions)
 
@@ -390,7 +404,7 @@ export default class AuthService {
     user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1
     user.lastFailedLoginAt = DateTime.now()
 
-    // Lock account after 5 failed attempts
+    // Lock account for LOCKOUT_MINUTES after 5 failed attempts
     if (user.failedLoginAttempts >= 5) {
       user.accountStatus = 'locked'
       logger.warn(`Account locked due to failed login attempts: ${user.id}`)

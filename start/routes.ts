@@ -19,11 +19,18 @@ router.get('/', async () => {
   }
 })
 
-// Health check endpoint
+// Health check endpoint. The football API check is cached so that public
+// traffic to /health can't burn through the RapidAPI quota.
+const FOOTBALL_HEALTH_TTL_MS = 60_000
+let footballHealthCache: { healthy: boolean; checkedAt: number } | null = null
+
 router.get('/health', async ({ response }) => {
-  const footballApi = new FootballApiClient()
-  const apiHealthy = await footballApi.healthCheck()
-  
+  if (!footballHealthCache || Date.now() - footballHealthCache.checkedAt > FOOTBALL_HEALTH_TTL_MS) {
+    const footballApi = new FootballApiClient()
+    footballHealthCache = { healthy: await footballApi.healthCheck(), checkedAt: Date.now() }
+  }
+  const apiHealthy = footballHealthCache.healthy
+
   return response.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -37,9 +44,13 @@ router.get('/health', async ({ response }) => {
 // Authentication routes
 router.group(() => {
   router.post('/register', '#controllers/auth_controller.register')
+    .use(middleware.throttle({ max: 10, windowSeconds: 600 }))
   router.post('/login', '#controllers/auth_controller.login')
+    .use(middleware.throttle({ max: 20, windowSeconds: 60 }))
   router.post('/social-auth', '#controllers/auth_controller.socialAuth')
+    .use(middleware.throttle({ max: 20, windowSeconds: 60 }))
   router.post('/refresh-token', '#controllers/auth_controller.refreshToken')
+    .use(middleware.throttle({ max: 60, windowSeconds: 60 }))
   router.post('/logout', '#controllers/auth_controller.logout')
 }).prefix('/auth')
 

@@ -1,5 +1,20 @@
 import logger from '@adonisjs/core/services/logger'
 import Follow from '#models/follow'
+
+const MAX_PAGE_SIZE = 100
+
+/**
+ * Normalizes client-supplied pagination so a request can't ask for an
+ * unbounded page (e.g. ?limit=1000000) or pass NaN/negative values.
+ */
+function clampPagination(options: { page?: number; limit?: number }) {
+  const page = Number.isInteger(options.page) && options.page! > 0 ? options.page! : 1
+  const limit =
+    Number.isInteger(options.limit) && options.limit! > 0
+      ? Math.min(options.limit!, MAX_PAGE_SIZE)
+      : 20
+  return { page, limit }
+}
 import User from '#models/user'
 import Team from '#models/team'
 import League from '#models/league'
@@ -161,7 +176,8 @@ export default class FollowsService {
       includeInactive?: boolean
     } = {}
   ): Promise<{ follows: Follow[], pagination: any }> {
-    const { entityType, page = 1, limit = 20, includeInactive = false } = options
+    const { entityType, includeInactive = false } = options
+    const { page, limit } = clampPagination(options)
 
     let query = Follow.query()
       .where('user_id', userId)
@@ -240,12 +256,14 @@ export default class FollowsService {
     entityId: string, 
     options: { page?: number, limit?: number } = {}
   ): Promise<{ followers: Follow[], pagination: any }> {
-    const { page = 1, limit = 20 } = options
+    const { page, limit } = clampPagination(options)
 
     const followers = await Follow.query()
       .where('entity_type', entityType)
       .where('entity_id', entityId)
       .where('is_active', true)
+      // Public endpoint: never list users who made their profile private
+      .whereHas('user', (userQuery) => userQuery.where('is_private', false))
       .preload('user')
       .orderBy('created_at', 'desc')
       .paginate(page, limit)

@@ -56,4 +56,21 @@ export default await Env.create(new URL('../', import.meta.url), {
   AF_SEASON: Env.schema.string.optional(),
   AF_LEAGUE_SLUGS: Env.schema.string.optional(),
   MOCK_API: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring CORS
+  |----------------------------------------------------------
+  */
+  CORS_ORIGINS: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring social login (server-side only)
+  |----------------------------------------------------------
+  */
+  GOOGLE_CLIENT_ID: Env.schema.string.optional(),
+  GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),
+  FACEBOOK_APP_ID: Env.schema.string.optional(),
+  FACEBOOK_APP_SECRET: Env.schema.string.optional(),
 })

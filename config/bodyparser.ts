@@ -39,7 +39,8 @@ const bodyParserConfig = defineConfig({
      * move all uploaded files inside the tmp folder of your
      * operating system
      */
-    autoProcess: true,
+    // No route accepts file uploads, so don't write incoming files to disk
+    autoProcess: false,
     convertEmptyStringsToNull: true,
     processManually: [],
 
@@ -47,7 +48,7 @@ const bodyParserConfig = defineConfig({
      * Maximum limit of data to parse including all files
      * and fields
      */
-    limit: '20mb',
+    limit: '1mb',
     types: ['multipart/form-data'],
   },
 })

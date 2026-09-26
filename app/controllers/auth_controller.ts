@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 import AuthService from '#services/auth_service'
+import SocialAuthVerifier, { SocialAuthError } from '#services/social_auth_verifier'
 import vine from '@vinejs/vine'
 
 /**
@@ -21,6 +22,7 @@ import vine from '@vinejs/vine'
  */
 export default class AuthController {
   private authService = new AuthService()
+  private socialVerifier = new SocialAuthVerifier()
 
   /**
    * Register new user with email/password
@@ -113,21 +115,20 @@ export default class AuthController {
    */
   async socialAuth({ request, response }: HttpContext) {
     try {
-      // Validate social auth data
+      // The client only sends the OAuth code; identity comes from the provider
       const socialSchema = vine.object({
-        provider: vine.enum(['google', 'apple', 'facebook']),
-        providerId: vine.string().minLength(1),
-        email: vine.string().email().normalizeEmail(),
-        name: vine.string().minLength(1).maxLength(100).trim(),
-        avatar: vine.string().url().optional()
+        provider: vine.enum(['google', 'facebook'] as const),
+        code: vine.string().minLength(1).maxLength(2048),
+        redirectUri: vine.string().url({ require_tld: false }).maxLength(500),
+        codeVerifier: vine.string().minLength(43).maxLength(128).optional()
       })
 
-      const socialData = await vine.validate({
+      const exchange = await vine.validate({
         schema: socialSchema,
         data: request.body()
       })
 
-      // Authenticate with social provider
+      const socialData = await this.socialVerifier.verify(exchange)
       const result = await this.authService.socialAuth(socialData)
 
       return response.json({
@@ -139,7 +140,7 @@ export default class AuthController {
 
     } catch (error) {
       logger.error('Social auth failed:', error)
-      
+
       if (error.messages) {
         return response.status(422).json({
           error: 'Validation failed',
@@ -147,9 +148,16 @@ export default class AuthController {
         })
       }
 
+      if (error instanceof SocialAuthError) {
+        return response.status(error.status).json({
+          error: 'Social authentication failed',
+          message: error.message
+        })
+      }
+
       return response.status(400).json({
         error: 'Social authentication failed',
-        message: error.message
+        message: 'Could not sign in with this provider'
       })
     }
   }
@@ -204,8 +212,7 @@ export default class AuthController {
       logger.error('Logout failed:', error)
       
       return response.status(500).json({
-        error: 'Logout failed',
-        message: error.message
+        error: 'Logout failed'
       })
     }
   }
@@ -240,9 +247,9 @@ export default class AuthController {
   /**
    * Update user profile
    */
-  async updateProfile({ request, response, auth }: HttpContext) {
+  async updateProfile({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
 
       if (!user) {
         return response.status(401).json({
@@ -285,8 +292,7 @@ export default class AuthController {
       }
 
       return response.status(500).json({
-        error: 'Profile update failed',
-        message: error.message
+        error: 'Profile update failed'
       })
     }
   }
@@ -294,9 +300,9 @@ export default class AuthController {
   /**
    * Change password (for email auth users)
    */
-  async changePassword({ request, response, auth }: HttpContext) {
+  async changePassword({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
 
       if (!user) {
         return response.status(401).json({
@@ -355,8 +361,7 @@ export default class AuthController {
       }
 
       return response.status(500).json({
-        error: 'Password change failed',
-        message: error.message
+        error: 'Password change failed'
       })
     }
   }
@@ -364,9 +369,9 @@ export default class AuthController {
   /**
    * Delete user account
    */
-  async deleteAccount({ response, auth }: HttpContext) {
+  async deleteAccount({ request, response }: HttpContext) {
     try {
-      const user = auth.user
+      const user = (request as any).authenticatedUser
 
       if (!user) {
         return response.status(401).json({
@@ -389,8 +394,7 @@ export default class AuthController {
       logger.error('Account deletion failed:', error)
       
       return response.status(500).json({
-        error: 'Account deletion failed',
-        message: error.message
+        error: 'Account deletion failed'
       })
     }
   }
