@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import FootballApiClient from '#services/football_api_client'
 import FootballDataMapper from '#services/football_data_mapper'
-import { currentSeason, targetLeagueIds } from '#services/football_leagues'
+import { targetLeagueIds } from '#services/football_leagues'
 
 export default class FixturesController {
   private footballApi = new FootballApiClient()
@@ -92,18 +92,13 @@ export default class FixturesController {
     }
 
     try {
-      let fixtures
-      if (leagueId) {
-        // A league query needs its season
-        fixtures = await this.footballApi.getFixtures(date, String(leagueId), currentSeason())
-      } else {
-        // One call for the whole day, then keep only the leagues we cover.
-        // No season here: the date alone identifies the fixtures.
-        const leagues = new Set(targetLeagueIds())
-        fixtures = (await this.footballApi.getFixtures(date)).filter((fixture) =>
-          leagues.has(String(fixture.league.id))
-        )
-      }
+      // One date-only call, filtered here. A date alone identifies fixtures,
+      // and league+season queries are blocked for the current season on
+      // API-Football's free plan, so we never send a season from this endpoint.
+      const leagues = new Set(leagueId ? [String(leagueId)] : targetLeagueIds())
+      const fixtures = (await this.footballApi.getFixtures(date)).filter((fixture) =>
+        leagues.has(String(fixture.league.id))
+      )
 
       // Transform API response using our data mapper
       const transformedFixtures = fixtures.map(fixture => 

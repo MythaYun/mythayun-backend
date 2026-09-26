@@ -156,12 +156,36 @@ export interface LeagueResponse {
   }>
 }
 
+/**
+ * API-Football is available directly from API-SPORTS (API_FOOTBALL_KEY) or
+ * through RapidAPI (RAPIDAPI_KEY). Same data, different host and auth header;
+ * the direct key wins when both are set.
+ */
+function providerConfig(): { baseUrl: string; headers: Record<string, string> } {
+  const directKey = env.get('API_FOOTBALL_KEY')
+  if (directKey) {
+    return {
+      baseUrl: 'https://v3.football.api-sports.io',
+      headers: { 'x-apisports-key': directKey },
+    }
+  }
+  return {
+    baseUrl: 'https://api-football-v1.p.rapidapi.com/v3',
+    headers: {
+      'X-RapidAPI-Key': env.get('RAPIDAPI_KEY') || '',
+      'X-RapidAPI-Host': env.get('RAPIDAPI_HOST') || 'api-football-v1.p.rapidapi.com',
+    },
+  }
+}
+
 export default class FootballApiClient {
-  private baseUrl = 'https://api-football-v1.p.rapidapi.com/v3'
-  private headers = {
-    'X-RapidAPI-Key': env.get('RAPIDAPI_KEY'),
-    'X-RapidAPI-Host': env.get('RAPIDAPI_HOST'),
-    'Content-Type': 'application/json',
+  private baseUrl: string
+  private headers: Record<string, string>
+
+  constructor() {
+    const config = providerConfig()
+    this.baseUrl = config.baseUrl
+    this.headers = config.headers
   }
 
   private async makeRequest<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
@@ -292,8 +316,8 @@ export default class FootballApiClient {
   // Health check method
   async healthCheck(): Promise<boolean> {
     try {
-      const today = new Date().toISOString().split('T')[0]
-      await this.getFixtures(today)
+      // /status doesn't count toward the daily request quota
+      await this.makeRequest('/status')
       return true
     } catch (error) {
       logger.error('Football API health check failed', { error: error.message })
