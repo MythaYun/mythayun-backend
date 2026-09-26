@@ -2,7 +2,9 @@
 nixPkgs = ['nodejs-18_x', 'npm-9_x']
 
 [phases.install]
-cmds = ['npm ci']
+# The build (node ace build: typescript, @adonisjs/assembler, ts-node-maintained)
+# needs devDependencies, which npm skips when NODE_ENV=production.
+cmds = ['npm ci --include=dev']
 
 [phases.build]
 cmds = ['npm run build']
