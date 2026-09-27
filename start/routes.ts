@@ -9,7 +9,7 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import FootballApiClient from '#services/football_api_client'
+import { getFootballProvider } from '#services/football_provider'
 
 router.get('/', async () => {
   return {
@@ -20,14 +20,14 @@ router.get('/', async () => {
 })
 
 // Health check endpoint. The football API check is cached so that public
-// traffic to /health can't burn through the RapidAPI quota.
+// traffic to /health can't burn through the provider's request quota.
 const FOOTBALL_HEALTH_TTL_MS = 60_000
 let footballHealthCache: { healthy: boolean; checkedAt: number } | null = null
 
 router.get('/health', async ({ response }) => {
+  const provider = await getFootballProvider()
   if (!footballHealthCache || Date.now() - footballHealthCache.checkedAt > FOOTBALL_HEALTH_TTL_MS) {
-    const footballApi = new FootballApiClient()
-    footballHealthCache = { healthy: await footballApi.healthCheck(), checkedAt: Date.now() }
+    footballHealthCache = { healthy: await provider.healthCheck(), checkedAt: Date.now() }
   }
   const apiHealthy = footballHealthCache.healthy
 
@@ -36,7 +36,8 @@ router.get('/health', async ({ response }) => {
     timestamp: new Date().toISOString(),
     services: {
       api: 'healthy',
-      footballApi: apiHealthy ? 'healthy' : 'unhealthy'
+      footballApi: apiHealthy ? 'healthy' : 'unhealthy',
+      footballProvider: provider.name
     }
   })
 })

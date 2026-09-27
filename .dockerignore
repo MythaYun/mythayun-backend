@@ -1,0 +1,12 @@
+node_modules
+build
+tmp
+.git
+.env
+.env.*
+!.env.example
+!.env.railway.example
+npm-debug.log
+.DS_Store
+.vscode
+.idea

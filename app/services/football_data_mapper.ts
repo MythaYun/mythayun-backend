@@ -232,7 +232,7 @@ export default class FootballDataMapper {
     }
   }
 
-  private static getPhaseFromStatus(status: string, elapsed: number | null): string {
+  static getPhaseFromStatus(status: string, elapsed: number | null): string {
     switch (status) {
       case 'NS':
         return 'NOT_STARTED'
@@ -367,7 +367,7 @@ export default class FootballDataMapper {
   /**
    * Return empty statistics structure for fallback
    */
-  private static getEmptyStatistics(): MappedStatistics {
+  static getEmptyStatistics(): MappedStatistics {
     return {
       possession: { home: null, away: null },
       shots: {
@@ -386,7 +386,7 @@ export default class FootballDataMapper {
     }
   }
 
-  private static generateShortName(name: string): string {
+  static generateShortName(name: string): string {
     // Handle common team name patterns
     if (name.includes('FC ')) {
       return name.replace('FC ', '').substring(0, 3).toUpperCase()
