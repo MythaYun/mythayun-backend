@@ -52,6 +52,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   API_FOOTBALL_KEY: Env.schema.string.optional(),
+  // goal-api.com (takes precedence over API-Football when set)
+  GOAL_API_KEY: Env.schema.string.optional(),
+  GOAL_API_LEAGUE_IDS: Env.schema.string.optional(),
+  GOAL_API_LIVE_TTL_SECONDS: Env.schema.string.optional(),
   RAPIDAPI_HOST: Env.schema.string.optional(),
   RAPIDAPI_KEY: Env.schema.string.optional(),
   AF_SEASON: Env.schema.string.optional(),

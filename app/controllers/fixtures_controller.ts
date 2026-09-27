@@ -1,12 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
-import FootballApiClient from '#services/football_api_client'
-import FootballDataMapper from '#services/football_data_mapper'
-import { targetLeagueIds } from '#services/football_leagues'
+import { getFootballProvider } from '#services/football_provider'
 
 export default class FixturesController {
-  private footballApi = new FootballApiClient()
-
   async index({ request, response }: HttpContext) {
     const date = request.input('date', new Date().toISOString().split('T')[0])
     const leagueId = request.input('leagueId')
@@ -85,27 +81,17 @@ export default class FixturesController {
         error: { code: 'INVALID_DATE', message: 'date must be YYYY-MM-DD' }
       })
     }
-    if (leagueId !== undefined && leagueId !== null && !/^\d+$/.test(String(leagueId))) {
+    // API-Football IDs are numeric, goal-api IDs alphanumeric
+    if (leagueId !== undefined && leagueId !== null && !/^[a-z0-9]{1,40}$/i.test(String(leagueId))) {
       return response.status(400).json({
-        error: { code: 'INVALID_LEAGUE', message: 'leagueId must be a numeric API-Football league ID' }
+        error: { code: 'INVALID_LEAGUE', message: 'leagueId must be a league ID' }
       })
     }
 
     try {
-      // One date-only call, filtered here. A date alone identifies fixtures,
-      // and league+season queries are blocked for the current season on
-      // API-Football's free plan, so we never send a season from this endpoint.
-      const leagues = new Set(leagueId ? [String(leagueId)] : targetLeagueIds())
-      const fixtures = (await this.footballApi.getFixtures(date)).filter((fixture) =>
-        leagues.has(String(fixture.league.id))
-      )
-
-      // Transform API response using our data mapper
-      const transformedFixtures = fixtures.map(fixture => 
-        FootballDataMapper.mapFixtureToResponse(fixture)
-      )
-
-      return response.json(transformedFixtures)
+      const provider = await getFootballProvider()
+      const fixtures = await provider.getFixtures(date, leagueId ? String(leagueId) : undefined)
+      return response.json(fixtures)
     } catch (error) {
       return response.status(500).json({
         error: {
@@ -151,15 +137,8 @@ export default class FixturesController {
     }
 
     try {
-      // Live fixtures for the leagues we cover
-      const liveFixtures = await this.footballApi.getLiveFixtures(targetLeagueIds())
-      
-      // Transform API response using our data mapper
-      const transformedFixtures = liveFixtures.map(fixture => 
-        FootballDataMapper.mapFixtureToResponse(fixture)
-      )
-
-      return response.json(transformedFixtures)
+      const provider = await getFootballProvider()
+      return response.json(await provider.getLiveFixtures())
     } catch (error) {
       return response.status(500).json({
         error: {
