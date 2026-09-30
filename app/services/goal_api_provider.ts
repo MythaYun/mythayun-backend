@@ -6,19 +6,10 @@ import { goalApiLeagueIds } from '#services/football_leagues'
 import ResponseCache from '#services/response_cache'
 import type { FootballProvider, MatchDetails } from '#services/football_provider'
 import type { MappedFixture } from '#services/football_data_mapper'
+import { isoDate, shiftDays } from '#services/date_range'
 
 const MINUTE = 60
 const HOUR = 60 * MINUTE
-
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function shiftDays(date: string, days: number): string {
-  const shifted = new Date(`${date}T00:00:00Z`)
-  shifted.setUTCDate(shifted.getUTCDate() + days)
-  return isoDate(shifted)
-}
 
 /**
  * goal-api.com (https://goal-api.com). Used when GOAL_API_KEY is set.
@@ -42,9 +33,14 @@ export default class GoalApiProvider implements FootballProvider {
 
   /**
    * Seconds to keep a set of fixtures: short while something is in play or
-   * about to start, up to 30 minutes when nothing will change soon.
+   * about to start, up to `maxSeconds` (30 minutes by default) when nothing
+   * will change soon.
    */
-  private fixturesTtl(fixtures: GoalApiFixture[], allInPast: boolean): number {
+  private fixturesTtl(
+    fixtures: GoalApiFixture[],
+    allInPast: boolean,
+    maxSeconds = 30 * MINUTE
+  ): number {
     if (allInPast) return 6 * HOUR
 
     const now = Date.now()
@@ -60,9 +56,9 @@ export default class GoalApiProvider implements FootballProvider {
       }
     }
 
-    // Refresh 15 minutes before the next kickoff, at most every 30 minutes
+    // Refresh 15 minutes before the next kickoff, at most every `maxSeconds`
     const untilNext = (nextKickoff - now) / 1000 - 15 * MINUTE
-    return Math.round(Math.max(this.liveTtl, Math.min(untilNext, 30 * MINUTE)))
+    return Math.round(Math.max(this.liveTtl, Math.min(untilNext, maxSeconds)))
   }
 
   /** One league's fixtures from yesterday to tomorrow (UTC), cached */
@@ -84,6 +80,25 @@ export default class GoalApiProvider implements FootballProvider {
       `day:${leagueId}:${date}`,
       () => this.client.getLeagueFixtures(leagueId, date, date),
       (fixtures) => this.fixturesTtl(fixtures, date < today)
+    )
+  }
+
+  /**
+   * One league's fixtures over several days outside the yesterday-to-tomorrow
+   * window, with a single request. Past days never change much and are kept
+   * for hours; upcoming days are kept up to 2 hours (they only change when a
+   * match is moved or starts), less when a kickoff is close.
+   */
+  private leagueSpan(
+    leagueId: string,
+    from: string,
+    to: string,
+    inPast: boolean
+  ): Promise<GoalApiFixture[]> {
+    return this.cache.getOrLoad(
+      `span:${leagueId}:${from}:${to}`,
+      () => this.client.getLeagueFixtures(leagueId, from, to),
+      (fixtures) => this.fixturesTtl(fixtures, inPast, 2 * HOUR)
     )
   }
 
@@ -121,6 +136,43 @@ export default class GoalApiProvider implements FootballProvider {
     )
     return this.sortByKickoff(
       fixtures.filter((fixture) => fixture.kickoffUtc.slice(0, 10) === date).map(mapFixture)
+    )
+  }
+
+  /**
+   * Fixtures over a range of days. Request budget per league: the part inside
+   * the yesterday-to-tomorrow window comes from the shared window cache (no
+   * extra request), and each side of it costs at most one request, however
+   * many days it covers.
+   */
+  async getFixturesRange(from: string, to: string, leagueId?: string): Promise<MappedFixture[]> {
+    const leagueIds = leagueId ? [leagueId] : goalApiLeagueIds()
+    const today = isoDate(new Date())
+    const windowStart = shiftDays(today, -1)
+    const windowEnd = shiftDays(today, 1)
+
+    const pastTo = to < windowStart ? to : shiftDays(windowStart, -1)
+    const futureFrom = from > windowEnd ? from : shiftDays(windowEnd, 1)
+    const touchesPast = from < windowStart
+    const touchesWindow = from <= windowEnd && to >= windowStart
+    const touchesFuture = to > windowEnd
+
+    const fixtures = await this.forLeagues(leagueIds, async (id) => {
+      const parts = await Promise.all([
+        touchesPast ? this.leagueSpan(id, from, pastTo, true) : [],
+        touchesWindow ? this.leagueWindow(id) : [],
+        touchesFuture ? this.leagueSpan(id, futureFrom, to, false) : [],
+      ])
+      return parts.flat()
+    })
+
+    return this.sortByKickoff(
+      fixtures
+        .filter((fixture) => {
+          const day = fixture.kickoffUtc.slice(0, 10)
+          return day >= from && day <= to
+        })
+        .map(mapFixture)
     )
   }
 

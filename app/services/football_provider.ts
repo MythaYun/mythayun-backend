@@ -31,6 +31,11 @@ export interface FootballProvider {
   readonly name: string
   /** Fixtures on `date` (YYYY-MM-DD) for one league, or for every league we cover */
   getFixtures(date: string, leagueId?: string): Promise<MappedFixture[]>
+  /**
+   * Fixtures from `from` to `to` (YYYY-MM-DD, both included, at most
+   * MAX_RANGE_DAYS days), sorted by kick-off. Callers validate the range first.
+   */
+  getFixturesRange(from: string, to: string, leagueId?: string): Promise<MappedFixture[]>
   /** Matches in play right now in the leagues we cover */
   getLiveFixtures(): Promise<MappedFixture[]>
   /** One match with events and statistics, or null if it doesn't exist */

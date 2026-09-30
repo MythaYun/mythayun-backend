@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import { getFootballProvider } from '#services/football_provider'
+import { checkRange } from '#services/date_range'
 
 export default class FixturesController {
   async index({ request, response }: HttpContext) {
@@ -76,7 +77,22 @@ export default class FixturesController {
       ])
     }
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+    // A range (from + to) replaces the single date
+    const from = request.input('from')
+    const to = request.input('to')
+    const isRange = from !== undefined || to !== undefined
+
+    if (isRange) {
+      if (typeof from !== 'string' || typeof to !== 'string') {
+        return response.status(400).json({
+          error: { code: 'INVALID_RANGE', message: 'from and to must be given together, as YYYY-MM-DD' }
+        })
+      }
+      const check = checkRange(from, to)
+      if (!check.ok) {
+        return response.status(400).json({ error: { code: 'INVALID_RANGE', message: check.message } })
+      }
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
       return response.status(400).json({
         error: { code: 'INVALID_DATE', message: 'date must be YYYY-MM-DD' }
       })
@@ -90,7 +106,10 @@ export default class FixturesController {
 
     try {
       const provider = await getFootballProvider()
-      const fixtures = await provider.getFixtures(date, leagueId ? String(leagueId) : undefined)
+      const league = leagueId ? String(leagueId) : undefined
+      const fixtures = isRange
+        ? await provider.getFixturesRange(from, to, league)
+        : await provider.getFixtures(date, league)
       return response.json(fixtures)
     } catch (error) {
       return response.status(500).json({
